@@ -1,6 +1,6 @@
 import type { MentorApprovalStatus } from "@/types/mentor";
 
-export type MentorContestStatus = "draft" | "upcoming" | "ongoing" | "completed";
+export type MentorContestStatus = "draft" | "pending_review" | "rejected" | "upcoming" | "ongoing" | "completed" | "cancelled";
 export type MentorQuestionDifficulty = "easy" | "medium" | "hard";
 
 export type MentorContest = {
@@ -50,7 +50,7 @@ export type MentorParticipant = {
   submissions: number;
   score: number;
   rank?: number;
-  status: "registered" | "in_progress" | "completed";
+  status: "registered" | "in_progress" | "submitted" | "completed" | "disqualified";
 };
 
 export type MentorBooking = {
@@ -131,5 +131,7 @@ export type MentorDashboardResult = {
   warning?: string;
 };
 
-export type CreateMentorContestInput = Omit<MentorContest, "id" | "participants">;
+export type CreateMentorContestInput = Omit<MentorContest, "id" | "participants"> & {
+  questionMappings?: Array<{ questionId: string; points: number; order: number }>;
+};
 export type CreateMentorQuestionInput = Omit<MentorQuestion, "id" | "createdAt" | "usageCount">;

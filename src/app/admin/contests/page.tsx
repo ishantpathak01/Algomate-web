@@ -1,5 +1,5 @@
-import ModulePage from "@/components/common/ModulePage";
+import ContestReview from "@/components/admin/ContestReview";
 
 export default function AdminContestsPage() {
-  return <ModulePage area="Admin" title="Contest management" description="Review, approve, and cancel contests." />;
+  return <ContestReview />;
 }

@@ -1,5 +1,13 @@
-import type { PlatformApi } from "@/types/api";
+import type { PlatformApi, QuestionInput } from "@/types/api";
 import { apiRequest, jsonBody } from "./client";
+
+function adminQuestionPayload(input: Partial<QuestionInput>) {
+  const { statement, ...fields } = input;
+  return {
+    ...fields,
+    ...(statement === undefined ? {} : { description: statement }),
+  };
+}
 
 export const platformApi: PlatformApi = {
   auth: {
@@ -10,9 +18,29 @@ export const platformApi: PlatformApi = {
     update: (input) => apiRequest("/profile", { method: "PATCH", body: jsonBody(input) }),
   },
   contests: {
-    list: (status) => apiRequest(`/contests${status ? `?status=${encodeURIComponent(status)}` : ""}`),
+    list: (status, search) => {
+      const query = new URLSearchParams();
+      if (status) query.set("status", status);
+      if (search) query.set("search", search);
+      return apiRequest(`/contests${query.size ? `?${query.toString()}` : ""}`);
+    },
     get: (contestId) => apiRequest(`/contests/${encodeURIComponent(contestId)}`),
     questions: (contestId) => apiRequest(`/contests/${encodeURIComponent(contestId)}/questions`),
+    register: (contestId) =>
+      apiRequest(`/contests/${encodeURIComponent(contestId)}/registrations`, { method: "POST" }),
+    participation: (contestId) =>
+      apiRequest(`/contests/${encodeURIComponent(contestId)}/participation`),
+    start: (contestId) =>
+      apiRequest(`/contests/${encodeURIComponent(contestId)}/participation/start`, { method: "POST" }),
+    finalize: (contestId) =>
+      apiRequest(`/contests/${encodeURIComponent(contestId)}/participation/finalize`, { method: "POST" }),
+    reportMonitoringEvent: (contestId, kind) =>
+      apiRequest(`/contests/${encodeURIComponent(contestId)}/monitoring-events`, {
+        method: "POST",
+        body: jsonBody({ kind }),
+      }),
+    submissions: (contestId) =>
+      apiRequest(`/contests/${encodeURIComponent(contestId)}/submissions`),
     submit: (questionId, input) =>
       apiRequest(`/questions/${encodeURIComponent(questionId)}/submissions`, {
         method: "POST",
@@ -110,19 +138,19 @@ export const platformApi: PlatformApi = {
         body: jsonBody({ suspended }),
       }),
     contests: () => apiRequest("/admin/contests"),
-    reviewContest: (contestId, decision) =>
+    reviewContest: (contestId, decision, reason) =>
       apiRequest(`/admin/contests/${encodeURIComponent(contestId)}/review`, {
         method: "POST",
-        body: jsonBody({ decision }),
+        body: jsonBody({ decision, reason }),
       }),
     questions: (query) => {
       const suffix = query ? `?query=${encodeURIComponent(query)}` : "";
       return apiRequest(`/admin/questions${suffix}`);
     },
     updateQuestion: (questionId, input) =>
-      apiRequest(`/admin/questions/${encodeURIComponent(questionId)}`, {
+      apiRequest(`/admin/contests/questions/${encodeURIComponent(questionId)}`, {
         method: "PATCH",
-        body: jsonBody(input),
+        body: jsonBody(adminQuestionPayload(input)),
       }),
     analytics: () => apiRequest("/admin/analytics"),
     auditLog: () => apiRequest("/admin/audit-log"),

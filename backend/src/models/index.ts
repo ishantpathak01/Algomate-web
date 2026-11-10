@@ -1,7 +1,10 @@
 export { Booking } from "./Booking.js";
+export { AuditLog } from "./AuditLog.js";
 export { CoinTransaction } from "./CoinTransaction.js";
 export { College } from "./College.js";
 export { Contest } from "./Contest.js";
+export { ContestParticipation } from "./ContestParticipation.js";
+export { ContestResult } from "./ContestResult.js";
 export { Question } from "./Question.js";
 export { Submission } from "./Submission.js";
 export { User } from "./User.js";

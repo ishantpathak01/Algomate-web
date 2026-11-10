@@ -5,6 +5,9 @@ import { clerkMiddleware } from "@clerk/express";
 import authRouter from "./routes/auth.routes.js";
 import healthRouter from "./routes/health.routes.js";
 import { adminMentorApplicationRouter, mentorApplicationRouter } from "./routes/mentorApplication.routes.js";
+import { publicContestRouter, studentContestRouter, submissionRouter } from "./routes/contest.routes.js";
+import mentorContestRouter from "./routes/mentorContest.routes.js";
+import adminContestRouter from "./routes/adminContest.routes.js";
 import errorHandler from "./middleware/errorHandler.js";
 import notFound from "./middleware/notFound.js";
 
@@ -54,6 +57,11 @@ export function createApp(config: AppConfig = {}) {
     app.use("/api/auth", authRouter);
     app.use("/api/mentor-applications", mentorApplicationRouter);
     app.use("/api/admin/mentors", adminMentorApplicationRouter);
+    app.use("/api/contests", publicContestRouter);
+    app.use("/api/questions", submissionRouter);
+    app.use("/api/student", studentContestRouter);
+    app.use("/api/mentor", mentorContestRouter);
+    app.use("/api/admin/contests", adminContestRouter);
   }
   app.use(notFound);
   app.use(errorHandler);

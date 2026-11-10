@@ -1,5 +1,5 @@
-import ModulePage from "@/components/common/ModulePage";
+import ContestBrowser from "@/components/contests/ContestBrowser";
 
 export default function ContestsPage() {
-  return <ModulePage area="Community" title="Contests" description="Browse upcoming, ongoing, and completed coding contests." />;
+  return <ContestBrowser />;
 }

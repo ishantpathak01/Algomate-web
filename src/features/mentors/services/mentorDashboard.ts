@@ -9,16 +9,11 @@ import type {
   MentorQuestion,
 } from "../types/dashboard";
 import {
-  createMockContest,
-  createMockQuestion,
   getMockMentorDashboard,
   setMockAvailability,
-  deleteMockQuestion,
   updateMockBooking,
   updateMockAvailability,
-  updateMockContest,
   updateMockProfile,
-  updateMockQuestion,
 } from "./mock/mentorDashboard";
 
 function isUnavailable(error: unknown): boolean {
@@ -50,47 +45,79 @@ export async function getMentorDashboard(): Promise<MentorDashboardResult> {
   }
 }
 
+function contestPayload(input: Partial<CreateMentorContestInput>) {
+  const payload: Record<string, unknown> = {};
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.description !== undefined) payload.description = input.description;
+  if (input.startsAt !== undefined) payload.startTime = input.startsAt;
+  if (input.endsAt !== undefined) payload.endTime = input.endsAt;
+  if (input.registrationDeadline !== undefined) payload.registrationDeadline = input.registrationDeadline;
+  if (input.durationMinutes !== undefined) payload.duration = input.durationMinutes;
+  if (input.maxParticipants !== undefined) payload.maxParticipants = input.maxParticipants;
+  if (input.rules !== undefined) payload.rules = input.rules;
+  if (input.visibility !== undefined) payload.visibility = input.visibility;
+  if (input.bannerImageUrl !== undefined) payload.bannerImageUrl = input.bannerImageUrl;
+  if (input.questionIds !== undefined) {
+    payload.questions = input.questionMappings ?? input.questionIds.map((questionId, order) => ({
+      questionId,
+      points: 100,
+      order,
+    }));
+  }
+  if (input.prizeCoins !== undefined) {
+    payload.prizes = input.prizeCoins > 0
+      ? [{ place: 1, description: "First place", coins: input.prizeCoins }]
+      : [];
+  }
+  return payload;
+}
+
+function questionPayload(input: Partial<CreateMentorQuestionInput>) {
+  const payload: Record<string, unknown> = {};
+  if (input.title !== undefined) payload.title = input.title;
+  if (input.statement !== undefined) payload.description = input.statement;
+  if (input.inputFormat !== undefined) payload.inputFormat = input.inputFormat;
+  if (input.outputFormat !== undefined) payload.outputFormat = input.outputFormat;
+  if (input.difficulty !== undefined) payload.difficulty = input.difficulty;
+  if (input.topics !== undefined) payload.topics = input.topics;
+  if (input.points !== undefined) payload.points = input.points;
+  if (input.constraints !== undefined) payload.constraints = input.constraints;
+  if (input.examples !== undefined) payload.sampleCases = input.examples;
+  if (input.hiddenTestCases !== undefined || input.examples !== undefined) {
+    const publicCases = input.examples?.map((item) => ({
+      input: item.input,
+      expectedOutput: item.output,
+      isHidden: false,
+    })) ?? [];
+    const hiddenCases = input.hiddenTestCases?.map((item) => ({
+      input: item.input,
+      expectedOutput: item.output,
+      isHidden: true,
+    })) ?? [];
+    payload.testCases = [...publicCases, ...hiddenCases];
+  }
+  if (input.supportedLanguages !== undefined) payload.supportedLanguages = input.supportedLanguages;
+  if (input.timeLimitMs !== undefined) payload.timeLimitMs = input.timeLimitMs;
+  if (input.memoryLimitMb !== undefined) payload.memoryLimitMb = input.memoryLimitMb;
+  return payload;
+}
+
 export const mentorDashboardApi = {
-  contests: () =>
-    withMockFallback(
-      () => apiRequest<MentorContest[]>("/mentor/contests"),
-      () => getMockMentorDashboard().contests,
-    ),
+  contests: () => apiRequest<MentorContest[]>("/mentor/contests"),
   createContest: (input: CreateMentorContestInput) =>
-    withMockFallback(
-      () => apiRequest<MentorContest>("/mentor/contests", { method: "POST", body: jsonBody(input) }),
-      () => createMockContest(input),
-    ),
+    apiRequest<MentorContest>("/mentor/contests", { method: "POST", body: jsonBody(contestPayload(input)) }),
   updateContest: (id: string, input: Partial<CreateMentorContestInput>) =>
-    withMockFallback(
-      () => apiRequest<MentorContest>(`/mentor/contests/${encodeURIComponent(id)}`, { method: "PUT", body: jsonBody(input) }),
-      () => updateMockContest(id, input),
-    ),
-  questions: () =>
-    withMockFallback(
-      () => apiRequest<MentorQuestion[]>("/mentor/questions"),
-      () => getMockMentorDashboard().questions,
-    ),
+    apiRequest<MentorContest>(`/mentor/contests/${encodeURIComponent(id)}`, { method: "PATCH", body: jsonBody(contestPayload(input)) }),
+  submitContestForReview: (id: string) =>
+    apiRequest<MentorContest>(`/mentor/contests/${encodeURIComponent(id)}/submit-review`, { method: "POST" }),
+  questions: () => apiRequest<MentorQuestion[]>("/mentor/questions"),
   createQuestion: (input: CreateMentorQuestionInput) =>
-    withMockFallback(
-      () => apiRequest<MentorQuestion>("/mentor/questions", { method: "POST", body: jsonBody(input) }),
-      () => createMockQuestion(input),
-    ),
+    apiRequest<MentorQuestion>("/mentor/questions", { method: "POST", body: jsonBody(questionPayload(input)) }),
   updateQuestion: (id: string, input: Partial<CreateMentorQuestionInput>) =>
-    withMockFallback(
-      () => apiRequest<MentorQuestion>(`/mentor/questions/${encodeURIComponent(id)}`, { method: "PUT", body: jsonBody(input) }),
-      () => updateMockQuestion(id, input),
-    ),
+    apiRequest<MentorQuestion>(`/mentor/questions/${encodeURIComponent(id)}`, { method: "PATCH", body: jsonBody(questionPayload(input)) }),
   deleteQuestion: (id: string) =>
-    withMockFallback(
-      () => apiRequest<void>(`/mentor/questions/${encodeURIComponent(id)}`, { method: "DELETE" }),
-      () => deleteMockQuestion(id),
-    ),
-  participants: () =>
-    withMockFallback(
-      () => apiRequest<MentorDashboardData["participants"]>("/mentor/participants"),
-      () => getMockMentorDashboard().participants,
-    ),
+    apiRequest<void>(`/mentor/questions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  participants: () => apiRequest<MentorDashboardData["participants"]>("/mentor/participants"),
   bookings: () =>
     withMockFallback(
       () => apiRequest<MentorBooking[]>("/mentor/bookings"),

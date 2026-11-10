@@ -1,4 +1,4 @@
-import { model, models, Schema, type InferSchemaType } from "mongoose";
+import { model, models, Schema, type InferSchemaType, type Model } from "mongoose";
 
 const coinTransactionSchema = new Schema(
   {
@@ -13,7 +13,12 @@ const coinTransactionSchema = new Schema(
 );
 
 coinTransactionSchema.index({ userId: 1, createdAt: -1 });
+coinTransactionSchema.index(
+  { userId: 1, referenceId: 1 },
+  { unique: true, partialFilterExpression: { referenceId: { $type: "string" } } },
+);
 
 export type CoinTransactionDocument = InferSchemaType<typeof coinTransactionSchema>;
-export const CoinTransaction =
-  models.CoinTransaction ?? model("CoinTransaction", coinTransactionSchema);
+export const CoinTransaction: Model<CoinTransactionDocument> =
+  (models.CoinTransaction as Model<CoinTransactionDocument> | undefined) ??
+  model<CoinTransactionDocument>("CoinTransaction", coinTransactionSchema);

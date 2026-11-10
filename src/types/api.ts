@@ -2,8 +2,8 @@ import type {
   Contest,
   ContestQuestion,
   ContestStatus,
-  ContestSubmission,
   LeaderboardEntry,
+  ProgrammingLanguage,
 } from "./contest";
 import type { MentorAvailability, MentorProfile, MentorshipBooking } from "./mentor";
 import type { StudentProfile } from "./user";
@@ -11,6 +11,55 @@ import type { StudentProfile } from "./user";
 export type NewContestInput = Omit<Contest, "id" | "slug" | "status">;
 export type ContestUpdateInput = Partial<NewContestInput>;
 export type QuestionInput = Omit<ContestQuestion, "id">;
+export type ContestApiRecord = {
+  id: string;
+  title: string;
+  description: string;
+  startsAt: string;
+  endsAt: string;
+  registrationDeadline: string;
+  durationMinutes: number;
+  maxParticipants: number;
+  participants: number;
+  rules: string;
+  visibility: "public" | "private";
+  bannerImageUrl?: string;
+  status: "draft" | "pending_review" | "rejected" | "upcoming" | "ongoing" | "completed" | "cancelled";
+  reviewStatus?: "pending" | "approved" | "rejected";
+  reviewReason?: string;
+  prizes: Array<{ place: number; description: string; coins: number }>;
+  prizeCoins: number;
+  questionIds: string[];
+  createdBy: { id: string; name?: string };
+};
+export type ContestParticipationApiRecord = {
+  id: string;
+  contestId: string;
+  status: "registered" | "in_progress" | "submitted" | "completed" | "disqualified";
+  registeredAt: string;
+  startedAt?: string;
+  expiresAt?: string;
+  finalSubmittedAt?: string;
+};
+export type ContestQuestionApiRecord = ContestQuestion & {
+  inputFormat: string;
+  outputFormat: string;
+  points: number;
+};
+export type ContestSubmissionApiRecord = {
+  id: string;
+  contestId: string;
+  questionId: string;
+  language: ProgrammingLanguage;
+  status: "queued" | "running" | "accepted" | "wrong_answer" | "runtime_error" | "compilation_error" | "time_limit_exceeded" | "judge_error";
+  score: number;
+  attemptNumber: number;
+  passedTestCases: number;
+  totalTestCases: number;
+  executionTime?: number;
+  memoryUsed?: number;
+  submittedAt: string;
+};
 
 export type CoinTransaction = {
   id: string;
@@ -88,10 +137,16 @@ export type PlatformApi = {
     update(input: Partial<Omit<StudentProfile, "id" | "email" | "coinBalance">>): Promise<StudentProfile>;
   };
   contests: {
-    list(status?: ContestStatus): Promise<Contest[]>;
-    get(contestId: string): Promise<Contest>;
-    questions(contestId: string): Promise<ContestQuestion[]>;
-    submit(questionId: string, input: { language: string; sourceCode: string }): Promise<ContestSubmission>;
+    list(status?: ContestStatus, search?: string): Promise<ContestApiRecord[]>;
+    get(contestId: string): Promise<ContestApiRecord>;
+    questions(contestId: string): Promise<ContestQuestionApiRecord[]>;
+    register(contestId: string): Promise<ContestParticipationApiRecord>;
+    participation(contestId: string): Promise<ContestParticipationApiRecord>;
+    start(contestId: string): Promise<ContestParticipationApiRecord>;
+    finalize(contestId: string): Promise<ContestParticipationApiRecord>;
+    reportMonitoringEvent(contestId: string, kind: "fullscreen_exit" | "visibility_hidden" | "window_blur"): Promise<ContestParticipationApiRecord>;
+    submissions(contestId: string): Promise<ContestSubmissionApiRecord[]>;
+    submit(questionId: string, input: { contestId: string; language: ProgrammingLanguage; sourceCode: string }): Promise<ContestSubmissionApiRecord>;
     leaderboard(contestId: string): Promise<LeaderboardEntry[]>;
   };
   questions: {
@@ -143,8 +198,8 @@ export type PlatformApi = {
     suspendUser(userId: string, suspended: boolean): Promise<ManagedUser>;
     mentors(): Promise<MentorProfile[]>;
     suspendMentor(mentorId: string, suspended: boolean): Promise<MentorProfile>;
-    contests(): Promise<Contest[]>;
-    reviewContest(contestId: string, decision: "approve" | "cancel"): Promise<Contest>;
+    contests(): Promise<ContestApiRecord[]>;
+    reviewContest(contestId: string, decision: "approve" | "reject" | "cancel", reason?: string): Promise<ContestApiRecord>;
     questions(query?: string): Promise<ContestQuestion[]>;
     updateQuestion(questionId: string, input: Partial<QuestionInput>): Promise<ContestQuestion>;
     analytics(): Promise<PlatformAnalytics>;

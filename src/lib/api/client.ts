@@ -24,11 +24,22 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   if (init?.body) headers.set("Content-Type", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const response = await fetch(`${apiUrl.replace(/\/$/, "")}/api${path}`, {
-    ...init,
-    credentials: "include",
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl.replace(/\/$/, "")}/api${path}`, {
+      ...init,
+      credentials: "include",
+      headers,
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new PlatformApiError(
+        `Cannot reach the AlgoMate API at ${apiUrl}. Make sure the backend is running and its CORS origin allows this frontend.`,
+        0,
+      );
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);

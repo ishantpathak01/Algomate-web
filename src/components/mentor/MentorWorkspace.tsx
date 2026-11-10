@@ -321,7 +321,7 @@ function AuthenticatedMentorWorkspace() {
             {notice && <p role="status" className="rounded-xl border border-emerald-400/20 bg-emerald-400/[0.06] px-4 py-3 text-xs text-emerald-200">{notice}</p>}
             {errorMessage && <p role="alert" className="rounded-xl border border-rose-400/20 bg-rose-400/[0.06] px-4 py-3 text-xs text-rose-200">{errorMessage}</p>}
 
-            {section === "overview" && <Overview data={data} name={name} onPublish={(id) => void mutate(() => mentorDashboardApi.updateContest(id, { status: "upcoming" }), "Contest published.")} />}
+            {section === "overview" && <Overview data={data} name={name} onPublish={(id) => void mutate(() => mentorDashboardApi.submitContestForReview(id), "Contest submitted for admin review.")} />}
             {section === "contests" && selectedContest && <ContestDetails contest={selectedContest} data={data} onEdit={(contest) => setContestEditor(contest)} />}
             {section === "contests" && pathname === "/mentor/contests" && (
               <ContestManager
@@ -329,15 +329,22 @@ function AuthenticatedMentorWorkspace() {
                 filter={filter}
                 onFilter={setFilter}
                 onEdit={(contest) => setContestEditor(contest)}
-                onPublish={(contest) => void mutate(() => mentorDashboardApi.updateContest(contest.id, { status: "upcoming" }), "Contest published.")}
+                onPublish={(contest) => void mutate(() => mentorDashboardApi.submitContestForReview(contest.id), "Contest submitted for admin review.")}
               />
             )}
             {section === "contest-create" && (
               <ContestForm questions={data.questions} onSubmit={(input) => void mutate(
-                () => contestEditor
-                  ? mentorDashboardApi.updateContest(contestEditor.id, input)
-                  : mentorDashboardApi.createContest(input),
-                contestEditor ? "Contest updated." : "Contest created.",
+                async () => {
+                  if (contestEditor) {
+                    const updated = await mentorDashboardApi.updateContest(contestEditor.id, input);
+                    return input.status === "upcoming" && ["draft", "rejected"].includes(updated.status)
+                      ? mentorDashboardApi.submitContestForReview(updated.id)
+                      : updated;
+                  }
+                  const created = await mentorDashboardApi.createContest(input);
+                  return input.status === "upcoming" ? mentorDashboardApi.submitContestForReview(created.id) : created;
+                },
+                input.status === "upcoming" ? "Contest submitted for admin review." : contestEditor ? "Contest updated." : "Contest created.",
                 () => setContestEditor(null),
               )} />
             )}
@@ -374,7 +381,16 @@ function AuthenticatedMentorWorkspace() {
             {section === "profile" && <MentorProfile data={data} onSave={(input) => void mutate(() => mentorDashboardApi.updateProfile(input), "Profile updated.")} />}
             {contestEditor && section === "contests" && (
               <Modal onClose={() => setContestEditor(null)} title={`Edit ${contestEditor.title}`}>
-                <ContestForm questions={data.questions} initial={contestEditor} compact onSubmit={(input) => void mutate(() => mentorDashboardApi.updateContest(contestEditor.id, input), "Contest updated.", () => setContestEditor(null))} />
+              <ContestForm questions={data.questions} initial={contestEditor} compact onSubmit={(input) => void mutate(
+                async () => {
+                  const updated = await mentorDashboardApi.updateContest(contestEditor.id, input);
+                  return input.status === "upcoming" && ["draft", "rejected"].includes(updated.status)
+                    ? mentorDashboardApi.submitContestForReview(updated.id)
+                    : updated;
+                },
+                input.status === "upcoming" ? "Contest submitted for admin review." : "Contest updated.",
+                () => setContestEditor(null),
+              )} />
               </Modal>
             )}
             {questionEditor && (
@@ -493,7 +509,7 @@ function Overview({ data, name, onPublish }: { data: MentorDashboardData; name: 
 
 function ContestManager({ contests, filter, onFilter, onEdit, onPublish, compact = false }: { contests: MentorContest[]; filter: "all" | MentorContestStatus; onFilter: (filter: "all" | MentorContestStatus) => void; onEdit: (contest: MentorContest) => void; onPublish: (contest: MentorContest) => void; compact?: boolean }) {
   return <Panel title={compact ? "Your contests" : "Contest management"} subtitle="Track schedules, registrations, questions, and prizes." action={<Link href="/mentor/contests/create" className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-[#8b6cff]">Create contest</Link>}>
-    {!compact && <div className="mb-4 flex flex-wrap gap-2">{(["all", "draft", "upcoming", "ongoing", "completed"] as const).map((value) => <button key={value} onClick={() => onFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize ${filter === value ? "bg-brand/20 text-brand-soft" : "bg-white/[0.05] text-muted hover:text-white"}`}>{value}</button>)}</div>}
+    {!compact && <div className="mb-4 flex flex-wrap gap-2">{(["all", "draft", "pending_review", "rejected", "upcoming", "ongoing", "completed"] as const).map((value) => <button key={value} onClick={() => onFilter(value)} className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize ${filter === value ? "bg-brand/20 text-brand-soft" : "bg-white/[0.05] text-muted hover:text-white"}`}>{value.replaceAll("_", " ")}</button>)}</div>}
     {contests.length === 0 ? <Empty>No contests match this filter.</Empty> : <div className="overflow-x-auto"><table className="w-full min-w-[790px] text-left text-xs">
       <thead className="border-y border-line text-[10px] uppercase tracking-wide text-muted"><tr>{["Contest", "Status", "Schedule", "Participants", "Questions", "Prize", "Actions"].map((item) => <th key={item} className="px-3 py-3 font-semibold first:pl-1">{item}</th>)}</tr></thead>
       <tbody className="divide-y divide-line">{contests.map((contest) => <tr key={contest.id} className="hover:bg-white/[0.025]">
@@ -505,8 +521,8 @@ function ContestManager({ contests, filter, onFilter, onEdit, onPublish, compact
         <td className="px-3 py-4 text-amber-300">{contest.prizeCoins.toLocaleString()} coins</td>
         <td className="px-3 py-4"><div className="flex flex-wrap gap-2">
           <Link href={`/mentor/contests/${encodeURIComponent(contest.id)}`} className="text-brand-soft hover:text-white">View</Link>
-          {contest.status !== "completed" && <button onClick={() => onEdit(contest)} className="text-muted hover:text-white">Edit</button>}
-          {contest.status === "draft" && <button onClick={() => onPublish(contest)} className="text-emerald-300 hover:text-emerald-200">Publish</button>}
+          {["draft", "rejected", "upcoming"].includes(contest.status) && contest.participants === 0 && <button onClick={() => onEdit(contest)} className="text-muted hover:text-white">Edit</button>}
+          {(contest.status === "draft" || contest.status === "rejected") && <button onClick={() => onPublish(contest)} className="text-emerald-300 hover:text-emerald-200">Submit for review</button>}
           <Link href="/mentor/questions" className="text-muted hover:text-white">Questions</Link>
           <Link href={`/mentor/participants?contestId=${encodeURIComponent(contest.id)}`} className="text-muted hover:text-white">People</Link>
         </div></td>
@@ -521,7 +537,7 @@ function ContestDetails({ contest, data, onEdit }: { contest: MentorContest; dat
   return <>
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div><p className="text-sm font-medium uppercase tracking-wide text-brand-soft">Contest workspace</p><h1 className="mt-2 text-3xl font-semibold text-white">{contest.title}</h1><p className="mt-2 max-w-3xl text-sm text-muted">{contest.description}</p></div>
-      <div className="flex items-center gap-2"><StatusBadge value={contest.status} />{contest.status !== "completed" && <button onClick={() => onEdit(contest)} className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-[#8b6cff]">Edit contest</button>}</div>
+      <div className="flex items-center gap-2"><StatusBadge value={contest.status} />{["draft", "rejected", "upcoming"].includes(contest.status) && contest.participants === 0 && <button onClick={() => onEdit(contest)} className="rounded-lg bg-brand px-3 py-2 text-xs font-semibold text-white hover:bg-[#8b6cff]">Edit contest</button>}</div>
     </div>
     {contest.status === "completed" && <p role="status" className="rounded-xl border border-amber-400/20 bg-amber-400/[0.05] p-3 text-xs text-amber-200">This contest is complete. Mentors can no longer edit its content or questions; contact an admin for changes.</p>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -566,6 +582,11 @@ function ContestForm({ questions, initial, compact = false, onSubmit }: { questi
       durationMinutes: Number(form.get("durationMinutes")),
       maxParticipants: Number(form.get("maxParticipants")),
       questionIds,
+      questionMappings: questionIds.map((questionId, order) => ({
+        questionId,
+        points: questions.find((question) => question.id === questionId)?.points ?? 100,
+        order,
+      })),
       prizeCoins: Number(form.get("prizeCoins")),
       visibility: String(form.get("visibility")) as "public" | "private",
       status: initial?.status ?? "draft",
@@ -579,7 +600,7 @@ function ContestForm({ questions, initial, compact = false, onSubmit }: { questi
       // eslint-disable-next-line @next/next/no-img-element
       <img src={preview.bannerImageUrl} alt="" className="mb-4 max-h-48 w-full rounded-xl object-cover" />
     )}<h3 className="text-xl font-bold text-white">{preview.title}</h3><p className="text-muted">{preview.description}</p><p className="text-muted">{dateLabel(preview.startsAt, true)} – {dateLabel(preview.endsAt, true)} · {preview.durationMinutes} minutes</p><p className="text-muted">{preview.questionIds.length} questions · {preview.prizeCoins} prize coins · {preview.maxParticipants} max participants · {preview.visibility}</p></div>
-    <div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setPreview(null)} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:text-white">Back to edit</button><button onClick={() => onSubmit(preview)} className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-white hover:border-brand/40">Save draft</button><button onClick={() => onSubmit({ ...preview, status: "upcoming" })} className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-[#8b6cff]">Publish contest</button></div>
+    <div className="mt-5 flex flex-wrap gap-2"><button onClick={() => setPreview(null)} className="rounded-lg border border-line px-4 py-2 text-sm text-muted hover:text-white">Back to edit</button><button onClick={() => onSubmit(preview)} className="rounded-lg border border-line px-4 py-2 text-sm font-semibold text-white hover:border-brand/40">Save draft</button><button onClick={() => onSubmit({ ...preview, status: "upcoming" })} className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white hover:bg-[#8b6cff]">Submit for admin review</button></div>
   </Panel>;
   return <Panel title={initial ? "Edit contest" : "Create contest"} subtitle={compact ? undefined : "Build the schedule and select questions. Review before saving."}>
     <form onSubmit={onFormSubmit} className="grid gap-4 sm:grid-cols-2">
@@ -678,7 +699,7 @@ function QuestionForm({ onSave, initial, initiallyOpen = true }: { onSave: (inpu
     <Field label="Constraints (one per line)"><textarea name="constraints" required defaultValue={initial?.constraints.join("\n")} className={inputClass} /></Field>
     <div className="grid gap-3 sm:grid-cols-3"><Field label="Difficulty"><select name="difficulty" defaultValue={initial?.difficulty ?? "easy"} className={inputClass}><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select></Field><Field label="Points"><input name="points" type="number" min={1} required defaultValue={initial?.points ?? 100} className={inputClass} /></Field><Field label="Time limit (ms)"><input name="timeLimitMs" type="number" min={100} required defaultValue={initial?.timeLimitMs ?? 2000} className={inputClass} /></Field></div>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Memory limit (MB)"><input name="memoryLimitMb" type="number" min={16} required defaultValue={initial?.memoryLimitMb ?? 256} className={inputClass} /></Field><Field label="Topics (comma separated)"><input name="topics" required defaultValue={initial?.topics.join(", ")} placeholder="Arrays, Graphs" className={inputClass} /></Field></div>
-    <fieldset><legend className="mb-2 text-xs text-muted">Supported languages</legend><div className="flex flex-wrap gap-3">{["TypeScript", "Python", "Java", "C++"].map((language) => <label key={language} className="flex items-center gap-1.5 text-xs text-white"><input type="checkbox" name="languages" value={language} defaultChecked={initial?.supportedLanguages.includes(language) ?? language === "TypeScript"} className="accent-[#7c5cf5]" />{language}</label>)}</div></fieldset>
+    <fieldset><legend className="mb-2 text-xs text-muted">Supported languages</legend><div className="flex flex-wrap gap-3">{[{ value: "javascript", label: "JavaScript" }, { value: "typescript", label: "TypeScript" }, { value: "python", label: "Python" }, { value: "java", label: "Java" }, { value: "cpp", label: "C++" }].map((language) => <label key={language.value} className="flex items-center gap-1.5 text-xs text-white"><input type="checkbox" name="languages" value={language.value} defaultChecked={initial?.supportedLanguages.includes(language.value) ?? language.value === "typescript"} className="accent-[#7c5cf5]" />{language.label}</label>)}</div></fieldset>
     <Field label="Examples JSON"><textarea required name="examples" defaultValue={JSON.stringify(initial?.examples ?? [{ input: "1 2", output: "3" }], null, 2)} className={`${inputClass} font-mono`} /></Field>
     <Field label="Hidden test cases JSON (mentor-only)"><textarea required name="hiddenTestCases" defaultValue={JSON.stringify(initial?.hiddenTestCases ?? [{ input: "5 7", output: "12" }], null, 2)} className={`${inputClass} font-mono`} /></Field>
     {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
