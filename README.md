@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AlgoMate
 
-## Getting Started
+AlgoMate is a Next.js App Router project for coding contests, mentorship, student profiles, rewards, and platform administration.
 
-First, run the development server:
+## Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Application code lives under `src/`:
 
-## Learn More
+- `src/app/` contains public, authentication, student, mentor, admin, and contest-participation routes.
+- `src/components/` contains shared UI, common layout, landing-page, and cross-feature components.
+- `src/features/` contains domain types, services, hooks, and feature components.
+- `src/lib/api/` contains the API transport client and typed endpoint bindings.
+- `src/lib/auth/`, `src/lib/validations/`, `src/hooks/`, and `src/types/` contain shared application utilities.
+- `src/services/mock/` contains the current landing-page seed data.
+- `public/images/`, `public/icons/`, and `public/fonts/` are static asset locations.
 
-To learn more about Next.js, take a look at the following resources:
+`@/` resolves to `src/`. Root configuration files and `public/` remain at the repository root as required by Next.js.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Backend integration status
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The application uses Clerk for frontend sign-in and typed client contracts for the Express API. No code runner, payment/coin ledger, or feature CRUD API is configured here. Routes that depend on those services are scaffolds; they do not simulate trusted scoring, coin deductions, mentor approval, or admin permissions.
 
-## Deploy on Vercel
+Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_SITE_URL` for the deployment. Configure backend endpoints and OAuth secrets on the server; never expose provider secrets in `NEXT_PUBLIC_*` variables.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The independent Express/MongoDB backend lives in `backend/`. Follow [backend/README.md](./backend/README.md) to configure MongoDB Atlas and start it on port 5000. The backend currently provides the health endpoint and domain model/API foundations; it is not yet a replacement for the frontend demo flows.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Clerk auth is integrated across the Next.js frontend and Express API. Put `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` in the frontend `.env.local`; keep `CLERK_SECRET_KEY` only in `backend/.env`, alongside `CLERK_PUBLISHABLE_KEY`. Enable desired sign-in providers in the Clerk Dashboard. The frontend sends Clerk session tokens as bearer tokens; the backend verifies them and syncs the signed-in user through `GET /api/auth/me`. Never share or commit either `.env` file.
+
+## Checks
+
+```bash
+npm run lint
+npm run build
+```

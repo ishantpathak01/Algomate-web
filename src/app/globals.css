@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;
+  --foreground: #ffffff;
+  --x: 50vw; /* cursor position, updated by <CursorGlow /> */
+  --y: 30vh;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: #0c0c11;
+  --color-line: #1e1e28;
+  --color-brand: #7c5cf5;
+  --color-brand-soft: #a08bff;
+  --color-muted: #8e8ea0;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-sans), Arial, Helvetica, sans-serif; }
+
+/* one soft violet glow that follows the cursor */
+.bg-glow {
+  position: fixed; inset: 0; z-index: -10; pointer-events: none;
+  background: radial-gradient(460px circle at var(--x) var(--y), rgba(124, 92, 245, 0.16), transparent 70%);
+}
+
+.rise { animation: rise .7s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .rise { animation: none; }
+}
+
+h1, h2, h3 { text-wrap: balance; }
+
+/* ---------- spinning logo cube ---------- */
+.cube-wrap { width: 28px; height: 28px; perspective: 140px; }
+.cube { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transform: rotateX(-25deg) rotateY(35deg); }
+.cube-spin { animation: cube-spin 8s linear infinite; }
+.cube i { position: absolute; inset: 0; border: 1.5px solid #a08bff; }
+.cube i:nth-child(1) { transform: translateZ(14px); background: rgba(124, 92, 245, .55); }
+.cube i:nth-child(2) { transform: rotateY(180deg) translateZ(14px); background: rgba(91, 63, 208, .55); }
+.cube i:nth-child(3) { transform: rotateY(90deg) translateZ(14px); background: rgba(160, 139, 255, .45); }
+.cube i:nth-child(4) { transform: rotateY(-90deg) translateZ(14px); background: rgba(91, 63, 208, .45); }
+.cube i:nth-child(5) { transform: rotateX(90deg) translateZ(14px); background: rgba(201, 188, 255, .5); }
+.cube i:nth-child(6) { transform: rotateX(-90deg) translateZ(14px); background: rgba(60, 40, 150, .5); }
+@keyframes cube-spin { to { transform: rotateX(-25deg) rotateY(395deg); } }
+@media (prefers-reduced-motion: reduce) { .cube-spin { animation: none; } }

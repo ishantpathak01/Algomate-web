@@ -1,0 +1,10 @@
+export { default as Hero } from "./Hero";
+export { default as Sponsors } from "./Sponsors";
+export { default as Features } from "./Features";
+export { default as Topics } from "./Topics";
+export { default as HowItWorks } from "./HowItWorks";
+export { default as Contests } from "./Contests";
+export { default as Mentors } from "./Mentors";
+export { default as Rewards } from "./Rewards";
+export { default as Faq } from "./Faq";
+export { default as FinalCTA } from "./FinalCTA";
